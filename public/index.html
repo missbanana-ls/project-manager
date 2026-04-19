@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>项目管理</title>
+  <style>
+    :root {
+      --mint: #5AD4AB; --mint-light: #E8F9F3; --mint-mid: #B8EDDA;
+      --text-primary: #1A1A2E; --text-secondary: #6E7191; --text-tertiary: #A0A3BD;
+      --border: #EFF0F6; --border-hover: #D9DBE9; --bg: #F7F7FC; --white: #FFFFFF;
+      --red-light: #FFF0F0; --red: #FF6B6B; --red-border: #FFD4D4;
+      --amber: #F4A261; --radius: 14px; --radius-sm: 10px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: var(--bg); min-height: 100vh; color: var(--text-primary); -webkit-font-smoothing: antialiased; }
+    .app { min-width: 540px; max-width: 960px; margin: 0 auto; padding: 32px 20px 100px; }
+
+    .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+    .header-left h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.3px; }
+    .header-left p { font-size: 14px; color: var(--text-tertiary); margin-top: 4px; }
+    .btn-settings { background: none; border: 1px solid var(--border); width: 38px; height: 38px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); transition: all 0.15s; flex-shrink: 0; margin-top: 4px; }
+    .btn-settings:hover { background: var(--bg); border-color: var(--border-hover); color: var(--text-secondary); }
+    .btn-settings svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 0; margin-bottom: 24px; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .tab-btn { flex: 1; height: 44px; background: none; border: none; font-size: 14px; font-weight: 600; cursor: pointer; color: var(--text-tertiary); transition: all 0.15s; position: relative; }
+    .tab-btn.active { color: var(--mint); background: var(--mint-light); }
+    .tab-btn:not(.active):hover { background: var(--bg); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Date Nav */
+    .date-nav { display: flex; align-items: center; justify-content: space-between; background: var(--white); border-radius: var(--radius); padding: 14px 20px; margin-bottom: 20px; border: 1px solid var(--border); }
+    .date-nav-btn { background: none; border: 1px solid var(--border); width: 34px; height: 34px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); transition: all 0.15s; }
+    .date-nav-btn:hover { background: var(--bg); border-color: var(--border-hover); }
+    .date-center { text-align: center; }
+    .date-main { font-size: 16px; font-weight: 600; }
+    .date-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stat-item { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 12px; text-align: center; }
+    .stat-num { font-size: 24px; font-weight: 700; line-height: 1; }
+    .stat-label { font-size: 12px; color: var(--text-tertiary); margin-top: 6px; font-weight: 500; }
+    .stat-item:nth-child(1) .stat-num { color: var(--text-primary); }
+    .stat-item:nth-child(2) .stat-num { color: var(--mint); }
+    .stat-item:nth-child(3) .stat-num { color: var(--amber); }
+
+    .list-header { padding: 8px 0 12px; display: flex; justify-content: space-between; align-items: center; }
+    .list-title { font-size: 14px; font-weight: 600; }
+    .list-count { font-size: 12px; color: var(--text-tertiary); background: var(--white); padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+    .todo-list { min-height: 80px; display: flex; flex-direction: column; gap: 8px; }
+
+    .todo-empty { text-align: center; padding: 48px 20px; background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); }
+    .empty-circle { width: 64px; height: 64px; border-radius: 50%; background: var(--bg); margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; }
+    .empty-circle svg { width: 28px; height: 28px; stroke: var(--text-tertiary); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .empty-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
+    .empty-desc { font-size: 13px; color: var(--text-tertiary); }
+
+    .todo-item { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); transition: opacity 0.15s; }
+    .todo-item.carried { background: var(--red-light); border-left: 3px solid var(--red); }
+    .todo-item.carried .todo-text { color: var(--red); }
+    .todo-item.dragging { opacity: 0.3; }
+    .todo-item.drag-over { box-shadow: 0 -2px 0 0 var(--mint); }
+
+    .drag-handle { width: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: grab; flex-shrink: 0; padding: 4px 0; opacity: 0.3; transition: opacity 0.15s; }
+    .drag-handle:active { cursor: grabbing; }
+    .todo-main:hover .drag-handle { opacity: 0.7; }
+    .drag-handle span { display: block; width: 12px; height: 2px; background: var(--text-tertiary); border-radius: 1px; }
+
+    .sub-item.dragging { opacity: 0.3; }
+    .sub-item.drag-over { border-top: 2px solid var(--mint) !important; }
+    .sub-drag { width: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.5px; cursor: grab; flex-shrink: 0; opacity: 0.25; transition: opacity 0.15s; }
+    .sub-drag:active { cursor: grabbing; }
+    .sub-item:hover .sub-drag { opacity: 0.6; }
+    .sub-drag span { display: block; width: 10px; height: 1.5px; background: var(--text-tertiary); border-radius: 1px; }
+
+    .todo-main { display: flex; align-items: center; padding: 12px 14px 12px 10px; gap: 10px; transition: background-color 0.1s; border-radius: var(--radius); }
+    .todo-main:hover { background-color: rgba(0,0,0,0.02); }
+    .todo-item.completed .todo-main { opacity: 0.45; }
+
+    .ck { width: 22px; height: 22px; border: 2px solid var(--border-hover); border-radius: 7px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .ck:hover { border-color: var(--mint); }
+    .ck svg { width: 12px; height: 12px; stroke: var(--white); stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+    .todo-item.completed .ck { background: var(--mint); border-color: var(--mint); }
+    .todo-item.completed .ck svg { opacity: 1; }
+
+    .todo-body { flex: 1; min-width: 0; }
+    .todo-text { font-size: 14px; line-height: 1.5; word-break: break-word; cursor: text; border-radius: 6px; padding: 2px 4px; margin: -2px -4px; transition: background 0.1s; }
+    .todo-text:hover { background: var(--bg); }
+    .todo-item.completed .todo-text { text-decoration: line-through; color: var(--text-tertiary) !important; cursor: default; }
+    .todo-item.completed .todo-text:hover { background: none; }
+    .inline-edit { width: 100%; height: 36px; border: 1px solid var(--mint); border-radius: 8px; padding: 0 10px; font-size: 14px; outline: none; background: var(--mint-light); color: var(--text-primary); }
+
+    .todo-progress { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .todo-pbar { width: 60px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .todo-pfill { height: 100%; background: var(--mint); border-radius: 2px; transition: width 0.3s; }
+    .todo-ptext { font-size: 11px; color: var(--text-tertiary); font-weight: 500; white-space: nowrap; }
+    .carry-tag { font-size: 11px; padding: 2px 8px; border-radius: 6px; background: var(--red-light); color: var(--red); font-weight: 600; flex-shrink: 0; border: 1px solid var(--red-border); }
+    .okr-link-tag { font-size: 11px; padding: 2px 8px; border-radius: 6px; background: #F0EDFB; color: #7C5CFC; font-weight: 600; flex-shrink: 0; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: default; }
+
+    /* KR Task Card */
+    .todo-item.kr-task { }
+    .kr-label { font-size: 12px; font-weight: 700; color: #7C5CFC; flex-shrink: 0; }
+    .kr-todo-section { padding: 8px 20px 12px 40px; }
+    .kr-todo-label { font-size: 12px; font-weight: 600; color: var(--amber); margin-bottom: 6px; }
+    .kr-todo-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .kr-todo-input { flex: 1; height: 36px; border: 1px solid var(--border); border-radius: 8px; padding: 0 10px; font-size: 13px; outline: none; background: var(--bg); color: var(--text-primary); }
+    .kr-todo-input:focus { border-color: var(--mint); background: var(--white); }
+    .kr-todo-input::placeholder { color: var(--text-tertiary); }
+    .kr-todo-done-btn { height: 36px; padding: 0 16px; background: var(--mint); color: var(--white); border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .kr-todo-done-btn:hover { background: #4BC9A0; }
+    .kr-todo-display { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .kr-todo-text { font-size: 14px; font-weight: 600; color: var(--text-primary); flex: 1; word-break: break-word; cursor: text; border-radius: 6px; padding: 2px 4px; margin: -2px -4px; transition: background 0.1s; }
+    .kr-todo-text:hover { background: var(--bg); }
+    .kr-todo-edit-btn { background: none; border: none; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.4; transition: all 0.1s; }
+    .kr-todo-edit-btn:hover { opacity: 1; background: var(--mint-light); }
+    .kr-todo-edit-btn svg { width: 13px; height: 13px; stroke: var(--mint); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .kr-finish-row { margin-top: 12px; display: flex; justify-content: flex-end; }
+    .kr-finish-btn { height: 36px; padding: 0 24px; background: var(--mint); color: var(--white); border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .kr-finish-btn:hover { background: #4BC9A0; }
+
+    .edit-link-section { margin-top: 10px; margin-bottom: 8px; }
+    .edit-link-label { font-size: 12px; font-weight: 600; color: var(--text-tertiary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .edit-link-select { width: 100%; height: 36px; border: 1px solid var(--border); border-radius: 8px; padding: 0 10px; font-size: 13px; outline: none; background: var(--bg); color: var(--text-primary); cursor: pointer; }
+    .edit-link-select:focus { border-color: var(--mint); background: var(--white); }
+
+    .item-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.1s; }
+    .todo-main:hover .item-actions { opacity: 1; }
+    .item-actions button { background: none; border: none; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background-color 0.1s; }
+    .item-actions button svg { width: 15px; height: 15px; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .btn-ie svg { stroke: var(--text-tertiary); } .btn-id svg { stroke: var(--text-tertiary); }
+    .btn-ie:hover { background: var(--mint-light); } .btn-ie:hover svg { stroke: var(--mint); }
+    .btn-id:hover { background: var(--red-light); } .btn-id:hover svg { stroke: var(--red); }
+
+    .edit-panel { display: none; padding: 4px 20px 16px 54px; animation: fadeIn 0.15s ease; }
+    .todo-item.editing .edit-panel { display: block; }
+    .edit-section-label { font-size: 12px; font-weight: 600; color: var(--text-tertiary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .edit-sub-item { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+    .edit-sub-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .edit-sub-dot.done { background: var(--mint); } .edit-sub-dot.pending { background: var(--border-hover); }
+    .edit-sub-text { flex: 1; font-size: 13px; color: var(--text-secondary); }
+    .edit-sub-del { background: none; border: none; width: 22px; height: 22px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.4; transition: all 0.1s; }
+    .edit-sub-del:hover { opacity: 1; background: var(--red-light); }
+    .edit-sub-del svg { width: 12px; height: 12px; stroke: var(--red); fill: none; stroke-width: 2; stroke-linecap: round; }
+    .edit-sub-add { display: flex; gap: 8px; margin-top: 8px; }
+    .edit-sub-input { flex: 1; height: 34px; border: 1px solid var(--border); border-radius: 8px; padding: 0 10px; font-size: 13px; outline: none; background: var(--bg); color: var(--text-primary); }
+    .edit-sub-input:focus { border-color: var(--mint); background: var(--white); }
+    .edit-sub-input::placeholder { color: var(--text-tertiary); }
+    .edit-sub-btn { height: 34px; padding: 0 14px; background: var(--mint-light); color: var(--mint); border: 1px solid var(--mint-mid); border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .edit-sub-btn:hover { background: var(--mint); color: var(--white); }
+    .edit-done-row { margin-top: 12px; display: flex; justify-content: flex-end; }
+    .edit-done-btn { height: 34px; padding: 0 20px; background: var(--mint); color: var(--white); border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .edit-done-btn:hover { background: #4BC9A0; }
+
+    .subtask-panel { display: none; padding: 0 16px 10px 52px; }
+    .todo-item.expanded .subtask-panel { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .sub-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+    .sub-ck { width: 18px; height: 18px; border: 1.5px solid var(--border-hover); border-radius: 5px; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+    .sub-ck:hover { border-color: var(--mint); }
+    .sub-ck svg { width: 10px; height: 10px; stroke: var(--white); stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+    .sub-item.done .sub-ck { background: var(--mint); border-color: var(--mint); }
+    .sub-item.done .sub-ck svg { opacity: 1; }
+    .sub-text { flex: 1; font-size: 13px; color: var(--text-secondary); line-height: 1.4; word-break: break-word; }
+    .sub-item.done .sub-text { text-decoration: line-through; color: var(--text-tertiary); }
+
+    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); border-top: 1px solid var(--border); padding: 12px 20px; z-index: 100; box-shadow: 0 -4px 20px rgba(0,0,0,0.04); }
+    .bottom-bar-inner { min-width: 540px; max-width: 960px; margin: 0 auto; display: flex; gap: 10px; }
+    .bottom-input { flex: 1; height: 44px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 14px; font-size: 14px; outline: none; background: var(--bg); transition: all 0.15s; color: var(--text-primary); }
+    .bottom-input:focus { border-color: var(--mint); background: var(--white); box-shadow: 0 0 0 3px rgba(90,212,171,0.1); }
+    .bottom-input::placeholder { color: var(--text-tertiary); }
+    .bottom-btn { height: 44px; padding: 0 22px; background: var(--mint); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .bottom-btn:hover { background: #4BC9A0; }
+
+    /* ===== Weekly Report Styles ===== */
+    .report-month-nav { display: flex; align-items: center; justify-content: space-between; background: var(--white); border-radius: var(--radius); padding: 14px 20px; margin-bottom: 20px; border: 1px solid var(--border); }
+    .report-month-text { font-size: 16px; font-weight: 600; }
+    .report-empty { text-align: center; padding: 48px 20px; background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); }
+    .report-generate-row { text-align: center; margin-top: 16px; }
+    .btn-generate { height: 40px; padding: 0 24px; background: var(--mint); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-generate:hover { background: #4BC9A0; }
+
+    .report-section { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; overflow: hidden; }
+    .report-section-header { padding: 14px 20px; font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .report-section-badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; background: var(--mint-light); color: var(--mint); }
+
+    .report-table { width: 100%; border-collapse: collapse; }
+    .report-table th { font-size: 12px; font-weight: 600; color: var(--text-tertiary); text-align: left; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--bg); }
+    .report-table td { font-size: 13px; padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .report-table tr:last-child td { border-bottom: none; }
+    .report-table .task-name { font-weight: 600; color: var(--text-primary); }
+    .report-table .task-subs { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; line-height: 1.6; }
+    .report-table .task-days { font-size: 12px; color: var(--text-secondary); white-space: nowrap; font-weight: 500; }
+    .report-table .task-kr-tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: #F0EDFB; color: #7C5CFC; font-weight: 700; margin-left: 6px; vertical-align: middle; }
+
+    .gantt-container { padding: 16px; overflow-x: auto; }
+    .gantt-chart { width: 100%; min-width: 400px; }
+    .gantt-header-row { display: grid; gap: 2px; margin-bottom: 10px; }
+    .gantt-header-cell { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-align: center; padding: 4px 0; }
+    .gantt-row { display: grid; gap: 2px; margin-bottom: 4px; align-items: center; height: 32px; }
+    .gantt-cell { height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: flex-start; position: relative; }
+    .gantt-cell.inactive { background: var(--bg); }
+    .gantt-cell.active { background: var(--mint); }
+    .gantt-cell.active.kr { background: #7C5CFC; }
+    .gantt-cell.active.first .gantt-bar-label { display: block; }
+    .gantt-bar-label { display: none; font-size: 11px; font-weight: 600; color: var(--white); padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; position: absolute; left: 0; right: 0; top: 0; bottom: 0; line-height: 28px; }
+    .gantt-today-marker { position: relative; }
+    .gantt-today-marker::after { content: ''; position: absolute; top: -4px; bottom: -4px; left: 50%; width: 2px; background: var(--red); border-radius: 1px; transform: translateX(-50%); z-index: 1; opacity: 0.6; }
+
+    /* ===== OKR Styles ===== */
+    .okr-list { display: flex; flex-direction: column; gap: 12px; }
+    .okr-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .okr-header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; }
+    .okr-badge { width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #43b581, #2d8f63); color: var(--white); font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .okr-title { flex: 1; font-size: 15px; font-weight: 600; min-width: 0; word-break: break-word; }
+    .okr-title-edit { flex: 1; height: 36px; border: 1px solid var(--mint); border-radius: 8px; padding: 0 10px; font-size: 14px; outline: none; background: var(--mint-light); color: var(--text-primary); }
+    .okr-actions { display: flex; gap: 4px; }
+    .okr-actions button { background: none; border: none; width: 30px; height: 30px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-tertiary); transition: all 0.1s; }
+    .okr-actions button:hover { background: var(--bg); color: var(--text-secondary); }
+    .okr-actions button svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .okr-progress-bar { height: 3px; background: var(--border); margin: 0 20px; }
+    .okr-progress-fill { height: 100%; background: linear-gradient(90deg, #43b581, var(--mint)); border-radius: 2px; transition: width 0.3s; }
+    .kr-list { padding: 8px 20px 12px 64px; }
+    .kr-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+    .kr-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-hover); flex-shrink: 0; }
+    .kr-content { flex: 1; font-size: 13px; color: var(--text-secondary); word-break: break-word; }
+    .kr-progress { font-size: 11px; color: var(--text-tertiary); font-weight: 600; white-space: nowrap; }
+    .kr-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.1s; }
+    .kr-item:hover .kr-actions { opacity: 1; }
+    .kr-actions button { background: none; border: none; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
+    .kr-actions button svg { width: 13px; height: 13px; stroke: var(--text-tertiary); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .kr-actions .kr-to-todo:hover { background: var(--mint-light); }
+    .kr-actions .kr-to-todo:hover svg { stroke: var(--mint); }
+    .kr-actions .kr-del:hover { background: var(--red-light); }
+    .kr-actions .kr-del:hover svg { stroke: var(--red); }
+    .kr-add-row { display: flex; gap: 8px; padding: 4px 20px 14px 64px; }
+    .kr-add-input { flex: 1; height: 34px; border: 1px solid var(--border); border-radius: 8px; padding: 0 10px; font-size: 13px; outline: none; background: var(--bg); color: var(--text-primary); }
+    .kr-add-input:focus { border-color: var(--mint); background: var(--white); }
+    .kr-add-input::placeholder { color: var(--text-tertiary); }
+    .kr-add-btn { height: 34px; padding: 0 14px; background: var(--mint-light); color: var(--mint); border: 1px solid var(--mint-mid); border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .kr-add-btn:hover { background: var(--mint); color: var(--white); }
+    .okr-add-card { background: var(--white); border: 1px dashed var(--border-hover); border-radius: var(--radius); padding: 16px 20px; display: flex; gap: 10px; }
+    .okr-add-input { flex: 1; height: 40px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 14px; font-size: 14px; outline: none; background: var(--bg); color: var(--text-primary); }
+    .okr-add-input:focus { border-color: var(--mint); background: var(--white); }
+    .okr-add-input::placeholder { color: var(--text-tertiary); }
+    .okr-add-btn { height: 40px; padding: 0 20px; background: var(--mint); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .okr-add-btn:hover { background: #4BC9A0; }
+
+    /* Settings */
+    .settings-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); margin-top: 16px; overflow: hidden; animation: slideDown 0.2s ease; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+    .settings-top { padding: 18px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .settings-label { font-size: 14px; font-weight: 600; }
+    .settings-close { background: none; border: none; cursor: pointer; color: var(--text-tertiary); padding: 4px; display: flex; }
+    .settings-close svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+    .settings-body { padding: 20px; }
+    .field-group { margin-bottom: 16px; } .field-group:last-child { margin-bottom: 0; }
+    .field-label { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    .field-input { width: 100%; height: 44px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 14px; font-size: 13px; outline: none; background: var(--bg); transition: all 0.15s; color: var(--text-primary); }
+    .field-input:focus { border-color: var(--mint); background: var(--white); box-shadow: 0 0 0 3px rgba(90,212,171,0.1); }
+    .field-hint { font-size: 12px; color: var(--text-tertiary); margin-top: 6px; line-height: 1.5; }
+    .settings-btns { display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap; }
+    .btn-mint { height: 42px; padding: 0 20px; background: var(--mint); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer; }
+    .btn-mint:hover { background: #4BC9A0; }
+    .btn-ghost { height: 42px; padding: 0 16px; background: var(--white); color: var(--text-secondary); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; }
+    .btn-ghost:hover { background: var(--bg); border-color: var(--border-hover); }
+
+    .toast { position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-80px); padding: 12px 24px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; z-index: 1000; transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); border: 1px solid var(--border); background: var(--white); color: var(--text-primary); box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-left: 3px solid var(--mint); }
+    .toast.error { border-left: 3px solid var(--red); }
+    .toast.info { border-left: 3px solid var(--text-tertiary); }
+
+    @media (max-width: 480px) { .app { padding: 24px 16px 90px; } .header-left h1 { font-size: 22px; } .stats { gap: 8px; } .stat-item { padding: 14px 8px; } .stat-num { font-size: 20px; } .item-actions { opacity: 1; } .edit-panel { padding-left: 40px; } .subtask-panel { padding-left: 40px; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="header-left"><h1>项目管理</h1><p>拆分子任务，逐步推进，每日精进</p></div>
+      <button class="btn-settings" id="btnSettings" title="设置"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn" data-tab="okr">OKR</button>
+      <button class="tab-btn active" data-tab="todo">待办</button>
+      <button class="tab-btn" data-tab="report">周报</button>
+    </div>
+
+    <!-- OKR Tab -->
+    <div class="tab-content" id="tabOkr">
+      <div class="list-header"><span class="list-title">目标与关键结果</span></div>
+      <div class="okr-list" id="okrList"></div>
+    </div>
+
+    <!-- Todo Tab -->
+    <div class="tab-content active" id="tabTodo">
+      <div class="date-nav">
+        <button class="date-nav-btn" id="prevDay"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 4l-4 4 4 4"/></svg></button>
+        <div class="date-center"><div class="date-main" id="dateMain"></div><div class="date-sub" id="dateSub"></div></div>
+        <button class="date-nav-btn" id="nextDay"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 4l4 4-4 4"/></svg></button>
+      </div>
+      <div class="stats">
+        <div class="stat-item"><div class="stat-num" id="statTotal">0</div><div class="stat-label">总任务</div></div>
+        <div class="stat-item"><div class="stat-num" id="statDone">0</div><div class="stat-label">已完成</div></div>
+        <div class="stat-item"><div class="stat-num" id="statPending">0</div><div class="stat-label">进行中</div></div>
+      </div>
+      <div class="list-header"><span class="list-title">任务列表</span><span class="list-count" id="listCount">0 项</span></div>
+      <div class="todo-list" id="todoList"></div>
+    </div>
+
+    <!-- Report Tab -->
+    <div class="tab-content" id="tabReport">
+      <div class="report-month-nav">
+        <button class="date-nav-btn" id="prevWeek"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 4l-4 4 4 4"/></svg></button>
+        <span class="report-month-text" id="reportWeekText"></span>
+        <button class="date-nav-btn" id="nextWeek"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 4l4 4-4 4"/></svg></button>
+      </div>
+      <div id="reportList"></div>
+    </div>
+
+    <div class="settings-card" id="settingsPanel" style="display:none">
+      <div class="settings-top"><span class="settings-label">通知设置</span><button class="settings-close" id="btnCloseSettings"><svg viewBox="0 0 18 18"><path d="M4 4l10 10M14 4L4 14"/></svg></button></div>
+      <div class="settings-body">
+        <div class="field-group"><div class="field-label">企业微信 Webhook 地址</div><input class="field-input" type="text" id="webhookInput" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=..." /><div class="field-hint">在企业微信群聊中添加机器人，复制 Webhook 地址粘贴到这里</div></div>
+        <div class="field-group"><div class="field-label">工具访问地址</div><input class="field-input" type="text" id="toolUrlInput" placeholder="http://localhost:3000" /><div class="field-hint">企业微信通知中的跳转链接</div></div>
+        <div class="settings-btns"><button class="btn-mint" id="btnSaveConfig">保存</button><button class="btn-ghost" id="btnTestMorning">测试早间通知</button><button class="btn-ghost" id="btnTestEvening">测试日终通知</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-bar" id="bottomBar">
+    <div class="bottom-bar-inner"><input class="bottom-input" type="text" id="bottomInput" placeholder="添加新任务..." /><button class="bottom-btn" id="btnBottomAdd">添加</button></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API = '';
+    let currentDate = new Date();
+    let todos = [];
+    let editingId = null;
+    let inlineEditId = null;
+    let allKRs = [];
+    let currentTab = 'todo';
+
+    function formatDate(d) { return d.toISOString().split('T')[0]; }
+    function isToday(d) { return formatDate(d) === formatDate(new Date()); }
+    function formatMain(d) { if (isToday(d)) return '今天'; const m=d.getMonth()+1,dd=d.getDate(),y=d.getFullYear(); return `${y} 年 ${m} 月 ${dd} 日`; }
+    function formatSub(d) { return ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][d.getDay()]; }
+    function showToast(msg, type='info') { const el=document.getElementById('toast'); el.textContent=msg; el.className=`toast ${type} show`; setTimeout(()=>el.classList.remove('show'),2500); }
+    function escapeHtml(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+    function escapeAttr(s) { return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // ===== Tabs =====
+    function updateBottomBar() {
+      const bar = document.getElementById('bottomBar');
+      const input = document.getElementById('bottomInput');
+      if (currentTab === 'todo') {
+        bar.style.display = 'block';
+        input.placeholder = '添加新任务...';
+      } else if (currentTab === 'okr') {
+        bar.style.display = 'block';
+        input.placeholder = '添加新目标 (Objective)...';
+      } else {
+        bar.style.display = 'none';
+      }
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentTab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        const tabMap = { okr: 'tabOkr', todo: 'tabTodo', report: 'tabReport' };
+        document.getElementById(tabMap[currentTab]).classList.add('active');
+        updateBottomBar();
+        if (currentTab === 'report') fetchReports();
+        if (currentTab === 'okr') fetchOKRs();
+      });
+    });
+
+    // ===== Todo API =====
+    async function fetchTodos() { const res=await fetch(`${API}/api/todos?date=${formatDate(currentDate)}`); const json=await res.json(); todos=json.data||[]; renderTodos(); }
+    async function addTodo(content) { const res=await fetch(`${API}/api/todos`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,date:formatDate(currentDate)})}); const json=await res.json(); if(json.success){showToast('任务已添加','success');fetchTodos();} }
+    async function toggleTodo(id) { await fetch(`${API}/api/todos/${id}/toggle`,{method:'PATCH'}); fetchTodos(); }
+    async function updateTodo(id,content) { await fetch(`${API}/api/todos/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})}); fetchTodos(); }
+    async function deleteTodo(id) { await fetch(`${API}/api/todos/${id}`,{method:'DELETE'}); editingId=null; showToast('任务已删除','info'); fetchTodos(); }
+    async function addSubtask(todoId,content) { await fetch(`${API}/api/todos/${todoId}/subtasks`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content})}); fetchTodos(); }
+    async function toggleSubtask(subId) { await fetch(`${API}/api/subtasks/${subId}/toggle`,{method:'PATCH'}); fetchTodos(); }
+    async function deleteSubtask(subId) { await fetch(`${API}/api/subtasks/${subId}`,{method:'DELETE'}); fetchTodos(); }
+
+    async function loadConfig() { const res=await fetch(`${API}/api/config`); const json=await res.json(); if(json.data){document.getElementById('webhookInput').value=json.data.webhook_url||'';document.getElementById('toolUrlInput').value=json.data.tool_url||'http://localhost:3000';} }
+    async function saveConfig() { const webhook_url=document.getElementById('webhookInput').value.trim(); const tool_url=document.getElementById('toolUrlInput').value.trim(); await fetch(`${API}/api/config`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({webhook_url,tool_url})}); showToast('配置已保存','success'); }
+    async function testNotify(type) { try{const res=await fetch(`${API}/api/notify/test`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type})}); const json=await res.json(); showToast(json.success?'通知已发送':(json.message||'发送失败'),json.success?'success':'error');}catch(e){showToast('发送失败','error');} }
+
+    function startInlineEdit(id) { const t=todos.find(x=>x.id===id); if(t&&t.completed)return; inlineEditId=id; renderTodos(); }
+    function saveInlineEdit(id) { const el=document.getElementById('inlineEdit'+id); if(!el)return; const val=el.value.trim(); inlineEditId=null; if(val)updateTodo(id,val); else renderTodos(); }
+    function inlineEditKey(e,id) { if(e.key==='Enter')e.target.blur(); if(e.key==='Escape'){inlineEditId=null;renderTodos();} }
+    async function startEdit(id) { editingId=(editingId===id)?null:id; if(editingId){const r=await fetch(`${API}/api/okr/all-krs`);const j=await r.json();allKRs=j.data||[];} renderTodos(); }
+    function cancelEditMode() { editingId=null; renderTodos(); }
+    async function linkTodoKR(todoId,krId) { await fetch(`${API}/api/todos/${todoId}/link-kr`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({kr_id:krId||null})}); fetchTodos(); }
+
+    // (KR todo functions moved to krEditingSet section below)
+
+    // KR task editing state: tracks which KR-tasks are in editing mode
+    let krEditingSet = new Set();
+    // Track which KR todo is being inline-edited
+    let krTodoEditingId = null;
+
+    function enterKREdit(todoId) { krEditingSet.add(todoId); renderTodos(); }
+    function finishKREdit(todoId) { krEditingSet.delete(todoId); krTodoEditingId = null; renderTodos(); }
+    function startKRTodoEdit(todoId) { krTodoEditingId = todoId; renderTodos(); }
+    function startKRTodoEditById(subId) { krTodoEditingId = subId; renderTodos(); }
+
+    // Save the KR's single todo content (add or update)
+    async function saveKRSingleTodo(todoId) {
+      const input = document.querySelector(`.kr-todo-input[data-tid="${todoId}"]`);
+      if (!input) return;
+      const val = input.value.trim();
+      if (!val) return;
+      // The todo already exists (it's the KR task itself), and we add ONE subtask as the "todo" (parent_id=null)
+      await addSubtask(todoId, val);
+      input.value = '';
+    }
+    function krSingleTodoKey(e, todoId) { if (e.key === 'Enter') saveKRSingleTodo(todoId); }
+
+    // Edit an existing KR "todo" (top-level subtask) via double-click
+    async function saveKRTodoInlineEdit(subId) {
+      const input = document.getElementById('krTodoEdit' + subId);
+      if (!input) return;
+      const val = input.value.trim();
+      krTodoEditingId = null;
+      if (val) {
+        await fetch(`${API}/api/subtasks/${subId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: val }) });
+      }
+      fetchTodos();
+    }
+    function krTodoInlineKey(e, subId) { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { krTodoEditingId = null; renderTodos(); } }
+
+    // Inline editing for any subtask (child) via double-click
+    let editingSubId = null;
+    function startSubInlineEdit(subId) { editingSubId = subId; renderTodos(); }
+    async function saveSubInlineEdit(subId) {
+      const input = document.getElementById('subInlineEdit' + subId);
+      if (!input) return;
+      const val = input.value.trim();
+      editingSubId = null;
+      if (val) {
+        await fetch(`${API}/api/subtasks/${subId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: val }) });
+      }
+      fetchTodos();
+    }
+    function subInlineEditKey(e, subId) { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { editingSubId = null; renderTodos(); } }
+
+    let collapsedKRTasks = new Set();
+    function collapseKRTask(id) { collapsedKRTasks.add(id); renderTodos(); }
+    function expandKRTask(id) { collapsedKRTasks.delete(id); renderTodos(); }
+    function editSubInputKey(e,todoId) { if(e.key==='Enter'){const val=e.target.value.trim(); if(val){addSubtask(todoId,val);e.target.value='';}} }
+    function editAddSub(todoId) { const input=document.querySelector(`.edit-panel[data-id="${todoId}"] .edit-sub-input`); const val=input.value.trim(); if(val){addSubtask(todoId,val);input.value='';} }
+
+    async function addChildSub(todoId, parentId) {
+      const inputs = document.querySelectorAll(`.edit-sub-input`);
+      // Find the input closest to this parent
+      const container = event.target.closest('div[style]');
+      const input = container ? container.querySelector('.edit-sub-input') : null;
+      if (!input) return;
+      const val = input.value.trim();
+      if (!val) return;
+      await fetch(`${API}/api/todos/${todoId}/subtasks`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: val, parent_id: parentId })
+      });
+      input.value = '';
+      fetchTodos();
+    }
+    function addChildKey(e, todoId, parentId) { if (e.key === 'Enter') { const val = e.target.value.trim(); if (val) { fetch(`${API}/api/todos/${todoId}/subtasks`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: val, parent_id: parentId }) }).then(() => { e.target.value = ''; fetchTodos(); }); } } }
+
+    // ===== Render Todos =====
+    function renderTodos() {
+      const list=document.getElementById('todoList'); const completed=todos.filter(t=>t.completed); const pending=todos.filter(t=>!t.completed);
+      document.getElementById('statTotal').textContent=todos.length; document.getElementById('statDone').textContent=completed.length; document.getElementById('statPending').textContent=pending.length;
+      document.getElementById('listCount').textContent=`${todos.length} 项`; document.getElementById('dateMain').innerHTML=formatMain(currentDate); document.getElementById('dateSub').textContent=formatSub(currentDate);
+      if(todos.length===0){list.innerHTML=`<div class="todo-empty"><div class="empty-circle"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div class="empty-title">暂无任务</div><div class="empty-desc">在底部输入框添加新任务</div></div>`;return;}
+      list.innerHTML=todos.map(t=>{
+        const subs=t.subtasks||[];
+        // Count all items (subs + their children) for progress
+        let totalAll=0, doneAll=0;
+        subs.forEach(s=>{ totalAll++; if(s.completed)doneAll++; (s.children||[]).forEach(c=>{ totalAll++; if(c.completed)doneAll++; }); });
+        const subPct=totalAll>0?Math.round(doneAll/totalAll*100):-1;
+        const hasSubtasks=subs.length>0,isCarried=!!t.carried_from,isEditing=editingId===t.id,isInlineEdit=inlineEditId===t.id;
+        const isKR = !!t.kr_id;
+
+        if (isKR) {
+          // === KR Task Card: multiple todos (top-level subtasks), each with children ===
+          const isKREditing = krEditingSet.has(t.id);
+
+          const cls=['todo-item kr-task',t.completed?'completed':'','expanded'].filter(Boolean).join(' ');
+          let krHtml = `<div class="${cls}" data-id="${t.id}" draggable="true" ondragstart="onTodoDragStart(event)" ondragover="onTodoDragOver(event)" ondragleave="onTodoDragLeave(event)" ondrop="onTodoDrop(event)" ondragend="onTodoDragEnd(event)">
+            <div class="todo-main">
+              <div class="drag-handle"><span></span><span></span><span></span></div>
+              <span class="kr-label">kr</span>
+              <div class="todo-body"><div class="todo-text" style="cursor:default">${escapeHtml(t.content)}</div></div>
+              ${totalAll>0?`<div class="todo-progress"><div class="todo-pbar"><div class="todo-pfill" style="width:${subPct}%"></div></div><span class="todo-ptext">${doneAll}/${totalAll}</span></div>`:''}
+              <div class="item-actions">
+                ${!isKREditing?`<button class="btn-ie" onclick="enterKREdit(${t.id})" title="编辑"><svg viewBox="0 0 16 16"><path d="M11.3 2.3a1.4 1.4 0 0 1 2 2L5.6 12l-3.2.8.8-3.2z"/></svg></button>`:''}
+                <button class="btn-id" onclick="deleteTodo(${t.id})"><svg viewBox="0 0 16 16"><path d="M2 4h12M5.3 4V2.7a.7.7 0 0 1 .7-.7h4a.7.7 0 0 1 .7.7V4M6.7 7.3v4M9.3 7.3v4"/><path d="M3.3 4l.7 9.3a1.3 1.3 0 0 0 1.3 1.4h5.4a1.3 1.3 0 0 0 1.3-1.4L12.7 4"/></svg></button>
+              </div>
+            </div>
+            <div class="kr-todo-section">`;
+
+          // === Render each todo (top-level subtask) and its children ===
+          subs.forEach(todoSub => {
+            const children = todoSub.children || [];
+            const isThisTodoEditing = krTodoEditingId === todoSub.id;
+
+            if (isThisTodoEditing) {
+              krHtml += `<div class="kr-todo-row" style="margin-bottom:6px">
+                <input class="inline-edit" id="krTodoEdit${todoSub.id}" value="${escapeAttr(todoSub.content)}" onblur="saveKRTodoInlineEdit(${todoSub.id})" onkeydown="krTodoInlineKey(event,${todoSub.id})" />
+              </div>`;
+            } else {
+              krHtml += `<div class="kr-todo-display">
+                <div class="sub-ck" onclick="toggleSubtask(${todoSub.id})"><svg viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5 4.5-5"/></svg></div>
+                <span class="kr-todo-text" style="${todoSub.completed?'text-decoration:line-through;color:var(--text-tertiary)':''}" ondblclick="startKRTodoEditById(${todoSub.id})">${escapeHtml(todoSub.content)}</span>
+                ${children.length>0?`<span style="font-size:11px;color:var(--text-tertiary);font-weight:500">${children.filter(c=>c.completed).length}/${children.length}</span>`:''}
+                ${isKREditing?`<button style="background:none;border:none;width:22px;height:22px;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.4" onclick="deleteSubtask(${todoSub.id})" onmouseover="this.style.opacity=1;this.style.background='var(--red-light)'" onmouseout="this.style.opacity=0.4;this.style.background='none'"><svg viewBox="0 0 16 16" width="12" height="12" style="stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>`:''}
+              </div>`;
+            }
+
+            // Children of this todo
+            if (children.length > 0) {
+              krHtml += `<div style="padding-left:28px;margin-top:2px">`;
+              children.forEach(c => {
+                if (editingSubId === c.id) {
+                  krHtml += `<div class="sub-item" style="padding:4px 0">
+                    <input class="inline-edit" id="subInlineEdit${c.id}" value="${escapeAttr(c.content)}" onblur="saveSubInlineEdit(${c.id})" onkeydown="subInlineEditKey(event,${c.id})" style="height:30px;font-size:13px" />
+                  </div>`;
+                } else {
+                  krHtml += `<div class="sub-item ${c.completed?'done':''}" style="padding:4px 0">
+                    <div class="sub-ck" onclick="toggleSubtask(${c.id})"><svg viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5 4.5-5"/></svg></div>
+                    <span class="sub-text" ondblclick="startSubInlineEdit(${c.id})">${escapeHtml(c.content)}</span>
+                    ${isKREditing?`<button style="background:none;border:none;width:20px;height:20px;border-radius:5px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0.3" onclick="deleteSubtask(${c.id})" onmouseover="this.style.opacity=1;this.style.background='var(--red-light)'" onmouseout="this.style.opacity=0.3;this.style.background='none'"><svg viewBox="0 0 16 16" width="11" height="11" style="stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>`:''}
+                  </div>`;
+                }
+              });
+              krHtml += `</div>`;
+            }
+
+            // Add child subtask input (editing mode)
+            if (isKREditing) {
+              krHtml += `<div class="edit-sub-add" style="margin-top:4px;padding-left:28px;margin-bottom:8px">
+                <input class="edit-sub-input" placeholder="添加子任务..." onkeydown="addChildKey(event,${t.id},${todoSub.id})" />
+                <button class="edit-sub-btn" onclick="addChildSub(${t.id},${todoSub.id})">添加</button>
+              </div>`;
+            }
+          });
+
+          // === Add todo input (always in editing mode) ===
+          if (isKREditing) {
+            krHtml += `<div class="kr-todo-row" style="margin-top:8px">
+              <input class="kr-todo-input" data-tid="${t.id}" placeholder="添加待办..." onkeydown="krSingleTodoKey(event,${t.id})" />
+              <button class="kr-todo-done-btn" onclick="saveKRSingleTodo(${t.id})">添加</button>
+            </div>`;
+          }
+
+          // === No content hint ===
+          if (subs.length === 0 && !isKREditing) {
+            krHtml += `<div style="font-size:13px;color:var(--text-tertiary);padding:4px 0">暂无内容，点击编辑添加</div>`;
+          }
+
+          // === Finish button ===
+          if (isKREditing) {
+            krHtml += `<div class="kr-finish-row">
+              <button class="kr-finish-btn" onclick="finishKREdit(${t.id})">完成</button>
+            </div>`;
+          }
+
+          krHtml += `</div></div>`;
+          return krHtml;
+        }
+
+        // === Normal todo item ===
+        const cls=['todo-item',t.completed?'completed':'',hasSubtasks&&!isEditing?'expanded':'',isCarried&&!t.completed?'carried':'',isEditing?'editing':''].filter(Boolean).join(' ');
+        const nameHtml=isInlineEdit?`<input class="inline-edit" id="inlineEdit${t.id}" value="${escapeAttr(t.content)}" onblur="saveInlineEdit(${t.id})" onkeydown="inlineEditKey(event,${t.id})" />`:`<div class="todo-text" onclick="startInlineEdit(${t.id})">${escapeHtml(t.content)}</div>`;
+        const linkedKR=t.kr_id?allKRs.find(k=>k.id===t.kr_id):null;
+        const linkTag=linkedKR&&!isEditing?`<span class="okr-link-tag" title="${escapeAttr(linkedKR.objective_title+' → '+linkedKR.content)}">${escapeHtml(linkedKR.objective_title)}</span>`:'';
+        const linkSelector=isEditing?`<div class="edit-link-section"><div class="edit-link-label">关联 OKR</div><select class="edit-link-select" onchange="linkTodoKR(${t.id},this.value?parseInt(this.value):null)"><option value="">不关联</option>${allKRs.map(k=>`<option value="${k.id}" ${t.kr_id===k.id?'selected':''}>[${escapeHtml(k.objective_title)}] ${escapeHtml(k.content)}</option>`).join('')}</select></div>`:'';
+        return `<div class="${cls}" data-id="${t.id}" draggable="true" ondragstart="onTodoDragStart(event)" ondragover="onTodoDragOver(event)" ondragleave="onTodoDragLeave(event)" ondrop="onTodoDrop(event)" ondragend="onTodoDragEnd(event)">
+          <div class="todo-main"><div class="drag-handle"><span></span><span></span><span></span></div><div class="ck" onclick="toggleTodo(${t.id})"><svg viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5 4.5-5"/></svg></div><div class="todo-body">${nameHtml}</div>${totalAll>0&&!isInlineEdit?`<div class="todo-progress"><div class="todo-pbar"><div class="todo-pfill" style="width:${subPct}%"></div></div><span class="todo-ptext">${doneAll}/${totalAll}</span></div>`:''}${linkTag}${isCarried&&!t.completed?'<span class="carry-tag">昨日遗留</span>':''}<div class="item-actions"><button class="btn-ie" onclick="startEdit(${t.id})"><svg viewBox="0 0 16 16"><path d="M11.3 2.3a1.4 1.4 0 0 1 2 2L5.6 12l-3.2.8.8-3.2z"/></svg></button><button class="btn-id" onclick="deleteTodo(${t.id})"><svg viewBox="0 0 16 16"><path d="M2 4h12M5.3 4V2.7a.7.7 0 0 1 .7-.7h4a.7.7 0 0 1 .7.7V4M6.7 7.3v4M9.3 7.3v4"/><path d="M3.3 4l.7 9.3a1.3 1.3 0 0 0 1.3 1.4h5.4a1.3 1.3 0 0 0 1.3-1.4L12.7 4"/></svg></button></div></div>
+          ${isEditing?`<div class="edit-panel" data-id="${t.id}">${linkSelector}<div class="edit-section-label">子任务</div>${subs.map(s=>`<div class="edit-sub-item"><div class="edit-sub-dot ${s.completed?'done':'pending'}"></div><span class="edit-sub-text">${escapeHtml(s.content)}</span><button class="edit-sub-del" onclick="deleteSubtask(${s.id})"><svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>`).join('')}<div class="edit-sub-add"><input class="edit-sub-input" placeholder="添加子任务..." onkeydown="editSubInputKey(event,${t.id})" /><button class="edit-sub-btn" onclick="editAddSub(${t.id})">添加</button></div><div class="edit-done-row"><button class="edit-done-btn" onclick="cancelEditMode()">完成</button></div></div>`:''}
+          ${!isEditing&&hasSubtasks?`<div class="subtask-panel">${subs.map(s=>`<div class="sub-item ${s.completed?'done':''}" data-sub-id="${s.id}" data-todo-id="${t.id}" draggable="true" ondragstart="onSubDragStart(event)" ondragover="onSubDragOver(event)" ondragleave="onSubDragLeave(event)" ondrop="onSubDrop(event)" ondragend="onSubDragEnd(event)"><div class="sub-drag"><span></span><span></span></div><div class="sub-ck" onclick="toggleSubtask(${s.id})"><svg viewBox="0 0 12 12"><path d="M2.5 6l2.5 2.5 4.5-5"/></svg></div><span class="sub-text">${escapeHtml(s.content)}</span></div>`).join('')}</div>`:''}
+        </div>`;
+      }).join('');
+      if(inlineEditId){const el=document.getElementById('inlineEdit'+inlineEditId);if(el){el.focus();el.select();}}
+      if(krTodoEditingId){const el=document.getElementById('krTodoEdit'+krTodoEditingId);if(el){el.focus();el.select();}}
+      if(editingSubId){const el=document.getElementById('subInlineEdit'+editingSubId);if(el){el.focus();el.select();}}
+    }
+
+    // ===== Reports =====
+    let reportWeekOffset = 0; // 0 = current week, -1 = last week, etc.
+
+    function getWeekDateStr(offset) {
+      const d = new Date();
+      d.setDate(d.getDate() + offset * 7);
+      return d.toISOString().split('T')[0];
+    }
+
+    async function fetchReports() {
+      const dateStr = getWeekDateStr(reportWeekOffset);
+      const res = await fetch(`${API}/api/reports/weekly-gantt?date=${dateStr}`);
+      const json = await res.json();
+      const data = json.data;
+      const container = document.getElementById('reportList');
+      const weekLabel = document.getElementById('reportWeekText');
+      
+      const dayNames = ['日','一','二','三','四','五','六'];
+      const ws = new Date(data.weekStart + 'T00:00:00');
+      const we = new Date(data.weekEnd + 'T00:00:00');
+      // 计算月内第几周：该周一是当月第几天，除以7向上取整
+      const weekInMonth = Math.ceil(ws.getDate() / 7);
+      weekLabel.innerHTML = `<div style="text-align:center"><div style="font-size:16px;font-weight:700">${ws.getMonth()+1}月第${weekInMonth}周</div><div style="font-size:12px;color:var(--text-tertiary);margin-top:2px">${ws.getDate()}日 - ${we.getDate()}日</div></div>`;
+
+      if (data.tasks.length === 0) {
+        container.innerHTML = `<div class="report-empty"><div class="empty-circle"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="empty-title">本周暂无已完成任务</div><div class="empty-desc">完成待办后会自动出现在周报中</div></div>`;
+        return;
+      }
+
+      // === Task Table ===
+      let html = `<div class="report-section">
+        <table class="report-table">
+          <tbody>`;
+      
+      data.tasks.forEach((t, i) => {
+        const subsHtml = t.subtasks.length > 0 
+          ? `<div class="task-subs">${t.subtasks.map(s => `· ${escapeHtml(s.content)}`).join('<br>')}</div>` 
+          : '';
+        const krTag = t.isKR ? '<span class="task-kr-tag">KR</span>' : '';
+        html += `<tr>
+          <td><div class="task-name">${escapeHtml(t.content)}${krTag}</div>${subsHtml}</td>
+          <td class="task-days">${t.dayCount} 天</td>
+          <td class="task-days">${t.startDate === t.endDate ? t.startDate.slice(5) : t.startDate.slice(5) + ' ~ ' + t.endDate.slice(5)}</td>
+        </tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+
+      // === Gantt Chart ===
+      const weekDays = data.weekDays;
+      const cols = weekDays.length;
+      const todayStr = new Date().toISOString().split('T')[0];
+      
+      html += `<div class="report-section">
+        <div class="gantt-container">
+          <div class="gantt-chart">
+            <div class="gantt-header-row" style="grid-template-columns:repeat(${cols},1fr)">
+              ${weekDays.map(d => {
+                const dd = new Date(d + 'T00:00:00');
+                const isToday = d === todayStr;
+                return `<div class="gantt-header-cell" style="${isToday?'color:var(--mint);font-weight:700':''}">
+                  ${dd.getMonth()+1}/${dd.getDate()}<br><span style="font-weight:${isToday?'600':'400'};opacity:${isToday?'1':'0.7'}">周${dayNames[dd.getDay()]}</span>
+                </div>`;
+              }).join('')}
+            </div>`;
+
+      data.tasks.forEach(t => {
+        const daySet = new Set(t.days);
+        // Find first active day index for label placement
+        const firstActiveIdx = weekDays.findIndex(d => daySet.has(d));
+        
+        html += `<div class="gantt-row" style="grid-template-columns:repeat(${cols},1fr)">`;
+        weekDays.forEach((d, i) => {
+          const isActive = daySet.has(d);
+          const isFirst = isActive && i === firstActiveIdx;
+          const isKR = t.isKR;
+          const isToday = d === todayStr;
+          // Calculate how many consecutive active cells from this point for label width
+          let span = 0;
+          if (isFirst) { for (let j = i; j < weekDays.length && daySet.has(weekDays[j]); j++) span++; }
+          html += `<div class="gantt-cell ${isActive ? 'active' : 'inactive'} ${isKR ? 'kr' : ''} ${isFirst ? 'first' : ''}" ${isToday && !isActive ? 'style="outline:2px solid var(--mint);outline-offset:-2px;opacity:0.5"' : ''}>
+            ${isFirst ? `<span class="gantt-bar-label">${escapeHtml(t.content)}</span>` : ''}
+          </div>`;
+        });
+        html += `</div>`;
+      });
+
+      html += `</div></div></div>`;
+      container.innerHTML = html;
+    }
+
+    // ===== Events =====
+    // ===== Bottom bar events =====
+    function handleBottomAdd() {
+      const input = document.getElementById('bottomInput');
+      const val = input.value.trim();
+      if (!val) return;
+      if (currentTab === 'todo') { addTodo(val); }
+      else if (currentTab === 'okr') { addObjective(val); }
+      input.value = '';
+    }
+
+    document.getElementById('btnBottomAdd').addEventListener('click', handleBottomAdd);
+    document.getElementById('bottomInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') handleBottomAdd(); });
+    document.getElementById('prevDay').addEventListener('click',()=>{currentDate.setDate(currentDate.getDate()-1);editingId=null;fetchTodos();});
+    document.getElementById('nextDay').addEventListener('click',()=>{currentDate.setDate(currentDate.getDate()+1);editingId=null;fetchTodos();});
+    document.getElementById('btnSettings').addEventListener('click',()=>{const p=document.getElementById('settingsPanel');p.style.display=p.style.display==='none'?'block':'none';if(p.style.display==='block')loadConfig();});
+    document.getElementById('btnCloseSettings').addEventListener('click',()=>{document.getElementById('settingsPanel').style.display='none';});
+    document.getElementById('btnSaveConfig').addEventListener('click',saveConfig);
+    document.getElementById('btnTestMorning').addEventListener('click',()=>testNotify('morning'));
+    document.getElementById('btnTestEvening').addEventListener('click',()=>testNotify('evening'));
+    document.getElementById('prevWeek').addEventListener('click',()=>{reportWeekOffset--;fetchReports();});
+    document.getElementById('nextWeek').addEventListener('click',()=>{reportWeekOffset++;fetchReports();});
+
+    // ===== Drag & Drop: Todos =====
+    let dragTodoId=null;
+    function onTodoDragStart(e){const item=e.target.closest('.todo-item');if(!item)return;dragTodoId=parseInt(item.dataset.id);item.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','todo');}
+    function onTodoDragOver(e){e.preventDefault();const item=e.target.closest('.todo-item');if(item&&parseInt(item.dataset.id)!==dragTodoId)item.classList.add('drag-over');}
+    function onTodoDragLeave(e){const item=e.target.closest('.todo-item');if(item)item.classList.remove('drag-over');}
+    function onTodoDrop(e){e.preventDefault();const target=e.target.closest('.todo-item');if(!target||!dragTodoId)return;target.classList.remove('drag-over');const targetId=parseInt(target.dataset.id);if(targetId===dragTodoId)return;const ids=todos.map(t=>t.id);const fi=ids.indexOf(dragTodoId),ti=ids.indexOf(targetId);if(fi<0||ti<0)return;ids.splice(fi,1);ids.splice(ti,0,dragTodoId);fetch(`${API}/api/todos/reorder`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})}).then(()=>fetchTodos());}
+    function onTodoDragEnd(e){dragTodoId=null;document.querySelectorAll('.todo-item').forEach(el=>el.classList.remove('dragging','drag-over'));}
+
+    let dragSubId=null,dragSubTodoId=null;
+    function onSubDragStart(e){e.stopPropagation();const item=e.target.closest('.sub-item');if(!item)return;dragSubId=parseInt(item.dataset.subId);dragSubTodoId=parseInt(item.dataset.todoId);item.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','sub');}
+    function onSubDragOver(e){e.preventDefault();e.stopPropagation();const item=e.target.closest('.sub-item');if(item&&parseInt(item.dataset.subId)!==dragSubId&&parseInt(item.dataset.todoId)===dragSubTodoId)item.classList.add('drag-over');}
+    function onSubDragLeave(e){e.stopPropagation();const item=e.target.closest('.sub-item');if(item)item.classList.remove('drag-over');}
+    function onSubDrop(e){e.preventDefault();e.stopPropagation();const target=e.target.closest('.sub-item');if(!target||!dragSubId)return;target.classList.remove('drag-over');const tid=parseInt(target.dataset.subId),todoId=parseInt(target.dataset.todoId);if(tid===dragSubId||todoId!==dragSubTodoId)return;const todo=todos.find(t=>t.id===todoId);if(!todo)return;const ids=todo.subtasks.map(s=>s.id);const fi=ids.indexOf(dragSubId),ti=ids.indexOf(tid);if(fi<0||ti<0)return;ids.splice(fi,1);ids.splice(ti,0,dragSubId);fetch(`${API}/api/subtasks/reorder`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ids})}).then(()=>fetchTodos());}
+    function onSubDragEnd(e){e.stopPropagation();dragSubId=null;dragSubTodoId=null;document.querySelectorAll('.sub-item').forEach(el=>el.classList.remove('dragging','drag-over'));}
+
+    // ===== OKR =====
+    let okrs = [];
+    let editingObjId = null;
+    let editingOKRs = new Set(); // tracks which OKR cards are in editing mode
+
+    async function fetchOKRs() {
+      const res = await fetch(`${API}/api/okr`);
+      const json = await res.json();
+      okrs = json.data || [];
+      renderOKRs();
+    }
+
+    async function addObjective(title) {
+      if (!title) return;
+      const res = await fetch(`${API}/api/okr/objectives`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) });
+      const json = await res.json();
+      if (json.success && json.data) editingOKRs.add(json.data.id);
+      showToast('目标已添加', 'success');
+      fetchOKRs();
+    }
+
+    async function deleteObjective(id) {
+      await fetch(`${API}/api/okr/objectives/${id}`, { method: 'DELETE' });
+      editingOKRs.delete(id);
+      showToast('目标已删除', 'info');
+      fetchOKRs();
+    }
+
+    function startEditObj(id) { editingObjId = id; renderOKRs(); }
+    function cancelEditObj() { editingObjId = null; renderOKRs(); }
+
+    async function saveEditObj(id) {
+      const input = document.querySelector(`.okr-card[data-oid="${id}"] .okr-title-edit`);
+      if (!input) return;
+      const val = input.value.trim();
+      editingObjId = null;
+      if (val) { await fetch(`${API}/api/okr/objectives/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: val }) }); }
+      fetchOKRs();
+    }
+
+    async function addKR(objId) {
+      const input = document.querySelector(`.okr-card[data-oid="${objId}"] .kr-add-input`);
+      const val = input.value.trim();
+      if (!val) return;
+      await fetch(`${API}/api/okr/objectives/${objId}/kr`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: val }) });
+      input.value = '';
+      fetchOKRs();
+    }
+
+    function krAddKey(e, objId) { if (e.key === 'Enter') addKR(objId); }
+
+    function enterOKREdit(id) { editingOKRs.add(id); renderOKRs(); }
+    function finishOKREdit(id) { editingOKRs.delete(id); editingObjId = null; editingKRId = null; renderOKRs(); }
+
+    // KR inline edit via double-click
+    let editingKRId = null;
+    function startKRInlineEdit(krId) { editingKRId = krId; renderOKRs(); setTimeout(() => { const el = document.getElementById('krInlineEdit' + krId); if (el) { el.focus(); el.select(); } }, 0); }
+    async function saveKRInlineEdit(krId) {
+      const input = document.getElementById('krInlineEdit' + krId);
+      if (!input) return;
+      const val = input.value.trim();
+      editingKRId = null;
+      if (val) { await fetch(`${API}/api/okr/kr/${krId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: val }) }); }
+      fetchOKRs();
+    }
+    function krInlineEditKey(e, krId) { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { editingKRId = null; renderOKRs(); } }
+
+    async function deleteKR(id) {
+      await fetch(`${API}/api/okr/kr/${id}`, { method: 'DELETE' });
+      fetchOKRs();
+    }
+
+    async function krToTodo(id) {
+      const res = await fetch(`${API}/api/okr/kr/${id}/to-todo`, { method: 'POST' });
+      const json = await res.json();
+      if (json.success && json.todoId) {
+        krEditingSet.add(json.todoId);
+        currentTab = 'todo';
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelector('.tab-btn[data-tab="todo"]').classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById('tabTodo').classList.add('active');
+        updateBottomBar();
+        fetchTodos();
+      }
+      showToast(json.message || (json.success ? '已添加到今日待办' : '添加失败'), json.success ? 'success' : 'error');
+    }
+
+    async function updateKRProgress(id, val) {
+      await fetch(`${API}/api/okr/kr/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ progress: parseInt(val) }) });
+      fetchOKRs();
+    }
+
+    function renderOKRs() {
+      const container = document.getElementById('okrList');
+      if (okrs.length === 0) {
+        container.innerHTML = `<div class="todo-empty"><div class="empty-circle"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div><div class="empty-title">暂无 OKR</div><div class="empty-desc">添加你的目标，拆解为关键结果</div></div>`;
+        return;
+      }
+      container.innerHTML = okrs.map((o, idx) => {
+        const krs = o.key_results || [];
+        const avgProgress = krs.length > 0 ? Math.round(krs.reduce((s, k) => s + k.progress, 0) / krs.length) : 0;
+        const isTitleEditing = editingObjId === o.id;
+        const isEditing = editingOKRs.has(o.id);
+        return `<div class="okr-card" data-oid="${o.id}">
+          <div class="okr-header">
+            <div class="okr-badge">O${idx + 1}</div>
+            ${isTitleEditing
+              ? `<input class="okr-title-edit" value="${escapeAttr(o.title)}" onkeydown="if(event.key==='Enter')saveEditObj(${o.id})" /><button class="okr-add-btn" style="height:36px;font-size:13px" onclick="saveEditObj(${o.id})">保存</button>`
+              : `<div class="okr-title">${escapeHtml(o.title)}</div>`}
+            <div class="okr-actions">
+              ${!isTitleEditing && isEditing ? `<button onclick="startEditObj(${o.id})" title="编辑"><svg viewBox="0 0 16 16"><path d="M11.3 2.3a1.4 1.4 0 0 1 2 2L5.6 12l-3.2.8.8-3.2z"/></svg></button>` : ''}
+              ${!isTitleEditing && !isEditing ? `<button onclick="enterOKREdit(${o.id})" title="编辑"><svg viewBox="0 0 16 16"><path d="M11.3 2.3a1.4 1.4 0 0 1 2 2L5.6 12l-3.2.8.8-3.2z"/></svg></button>` : ''}
+              <button onclick="deleteObjective(${o.id})" title="删除"><svg viewBox="0 0 16 16"><path d="M2 4h12M5.3 4V2.7a.7.7 0 0 1 .7-.7h4a.7.7 0 0 1 .7.7V4M6.7 7.3v4M9.3 7.3v4"/><path d="M3.3 4l.7 9.3a1.3 1.3 0 0 0 1.3 1.4h5.4a1.3 1.3 0 0 0 1.3-1.4L12.7 4"/></svg></button>
+            </div>
+          </div>
+          <div class="okr-progress-bar"><div class="okr-progress-fill" style="width:${avgProgress}%"></div></div>
+          <div class="kr-list">
+            ${krs.map(k => `<div class="kr-item">
+              <div class="kr-dot" style="background:${k.progress >= 100 ? 'var(--mint)' : k.progress > 0 ? 'var(--amber)' : 'var(--border-hover)'}"></div>
+              ${editingKRId === k.id
+                ? `<input class="inline-edit" id="krInlineEdit${k.id}" value="${escapeAttr(k.content)}" onblur="saveKRInlineEdit(${k.id})" onkeydown="krInlineEditKey(event,${k.id})" style="flex:1;height:30px;font-size:13px" />`
+                : `<div class="kr-content" style="cursor:text;border-radius:6px;padding:2px 4px;margin:-2px -4px;transition:background 0.1s" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background=''" ondblclick="startKRInlineEdit(${k.id})">${escapeHtml(k.content)}</div>`}
+              ${isEditing ? `<select style="width:60px;height:24px;border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--text-secondary);outline:none;background:var(--bg)" onchange="updateKRProgress(${k.id},this.value)">
+                ${[0,10,20,30,40,50,60,70,80,90,100].map(v=>`<option value="${v}" ${k.progress===v?'selected':''}>${v}%</option>`).join('')}
+              </select>` : `<span class="kr-progress">${k.progress}%</span>`}
+              ${isEditing ? `<div class="kr-actions" style="opacity:1">
+                <button class="kr-to-todo" onclick="krToTodo(${k.id})" title="添加到今日待办"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg></button>
+                <button class="kr-del" onclick="deleteKR(${k.id})" title="删除"><svg viewBox="0 0 16 16"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+              </div>` : `<div class="kr-actions">
+                <button class="kr-to-todo" onclick="krToTodo(${k.id})" title="添加到今日待办"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg></button>
+              </div>`}
+            </div>`).join('')}
+          </div>
+          ${isEditing ? `<div class="kr-add-row">
+            <input class="kr-add-input" placeholder="添加关键结果 (KR)..." onkeydown="krAddKey(event,${o.id})" />
+            <button class="kr-add-btn" onclick="addKR(${o.id})">添加</button>
+          </div>
+          <div class="edit-done-row" style="padding:0 20px 14px 64px"><button class="edit-done-btn" onclick="finishOKREdit(${o.id})">完成</button></div>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    fetchTodos();
+  </script>
+</body>
+</html>

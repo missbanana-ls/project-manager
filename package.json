@@ -1,0 +1,17 @@
+{
+  "name": "daily-todolist",
+  "version": "1.0.0",
+  "description": "每日 TodoList 工具，集成企业微信通知",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^2.7.0"
+  }
+}

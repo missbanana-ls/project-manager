@@ -1,0 +1,5 @@
+node_modules/
+todos.db
+todos.db-wal
+todos.db-shm
+.codebuddy/
