@@ -640,8 +640,9 @@
           ? `<div class="task-subs">${t.subtasks.map(s => `· ${escapeHtml(s.content)}`).join('<br>')}</div>` 
           : '';
         const krTag = t.isKR ? '<span class="task-kr-tag">KR</span>' : '';
+        const krNameHtml = t.isKR && t.krName ? `<div style="font-size:11px;color:#7C5CFC;margin-bottom:2px">${escapeHtml(t.krName)}</div>` : '';
         html += `<tr>
-          <td><div class="task-name">${escapeHtml(t.content)}${krTag}</div>${subsHtml}</td>
+          <td>${krNameHtml}<div class="task-name">${escapeHtml(t.content)}${krTag}</div>${subsHtml}</td>
           <td class="task-days">${t.dayCount} 天</td>
           <td class="task-days">${t.startDate === t.endDate ? t.startDate.slice(5) : t.startDate.slice(5) + ' ~ ' + t.endDate.slice(5)}</td>
         </tr>`;

@@ -156,18 +156,35 @@ function syncTodoCompleted(todoId) {
 
 // Sync parent subtask completion: if all children of a parent subtask are done, mark parent done too
 function syncParentSubtask(subtaskId) {
+  // Re-read the subtask to get latest state
   const sub = db.prepare('SELECT * FROM subtasks WHERE id = ?').get(subtaskId);
-  if (!sub || !sub.parent_id) return;
-  // This is a child; check siblings under the same parent
-  const siblings = db.prepare('SELECT * FROM subtasks WHERE parent_id = ?').all(sub.parent_id);
-  if (siblings.length === 0) return;
-  const allDone = siblings.every(s => s.completed);
-  const parent = db.prepare('SELECT * FROM subtasks WHERE id = ?').get(sub.parent_id);
-  if (!parent) return;
-  if (allDone && !parent.completed) {
-    db.prepare('UPDATE subtasks SET completed = 1 WHERE id = ?').run(sub.parent_id);
-  } else if (!allDone && parent.completed) {
-    db.prepare('UPDATE subtasks SET completed = 0 WHERE id = ?').run(sub.parent_id);
+  if (!sub) return;
+  
+  // If this subtask has a parent_id, check if all siblings under that parent are done
+  if (sub.parent_id) {
+    const siblings = db.prepare('SELECT * FROM subtasks WHERE parent_id = ?').all(sub.parent_id);
+    if (siblings.length > 0) {
+      const allDone = siblings.every(s => s.completed);
+      const parent = db.prepare('SELECT * FROM subtasks WHERE id = ?').get(sub.parent_id);
+      if (parent) {
+        if (allDone && !parent.completed) {
+          db.prepare('UPDATE subtasks SET completed = 1 WHERE id = ?').run(sub.parent_id);
+        } else if (!allDone && parent.completed) {
+          db.prepare('UPDATE subtasks SET completed = 0 WHERE id = ?').run(sub.parent_id);
+        }
+      }
+    }
+  }
+  
+  // Also check: if this subtask IS a parent (has children), sync its own status based on children
+  const children = db.prepare('SELECT * FROM subtasks WHERE parent_id = ?').all(subtaskId);
+  if (children.length > 0) {
+    const allChildrenDone = children.every(c => c.completed);
+    if (allChildrenDone && !sub.completed) {
+      db.prepare('UPDATE subtasks SET completed = 1 WHERE id = ?').run(subtaskId);
+    } else if (!allChildrenDone && sub.completed) {
+      db.prepare('UPDATE subtasks SET completed = 0 WHERE id = ?').run(subtaskId);
+    }
   }
 }
 
@@ -379,7 +396,12 @@ app.delete('/api/subtasks/:id', (req, res) => {
   const sub = db.prepare('SELECT * FROM subtasks WHERE id = ?').get(id);
   if (!sub) return res.status(404).json({ success: false, message: '子任务不存在' });
   const todoId = sub.todo_id;
+  const parentId = sub.parent_id;
+  // Also delete children of this subtask
+  db.prepare('DELETE FROM subtasks WHERE parent_id = ?').run(id);
   db.prepare('DELETE FROM subtasks WHERE id = ?').run(id);
+  // Sync parent if this was a child
+  if (parentId) syncParentSubtask(parentId);
   syncTodoCompleted(todoId);
   res.json({ success: true, data: getTodoWithSubtasks(todoId) });
 });
@@ -495,40 +517,68 @@ app.get('/api/reports/weekly-gantt', (req, res) => {
     cur.setDate(cur.getDate() + 1);
   }
   
-  // Collect all completed tasks across the week, tracking which days they appear
-  const taskMap = new Map(); // content -> { content, days: Set, subtasks: [] }
+  // Collect completed tasks across the week
+  const taskMap = new Map();
   
   days.forEach(dateStr => {
     const todos = getTodosWithSubtasks(dateStr);
-    todos.filter(t => t.completed).forEach(t => {
-      const key = t.content;
-      if (!taskMap.has(key)) {
-        taskMap.set(key, { 
-          content: t.content, 
-          days: new Set(), 
-          subtasks: [],
-          isKR: !!t.kr_id
-        });
-      }
-      taskMap.get(key).days.add(dateStr);
-      // Merge subtasks
-      const existing = taskMap.get(key);
-      (t.subtasks || []).forEach(s => {
-        if (s.completed && !existing.subtasks.find(x => x.content === s.content)) {
-          existing.subtasks.push({ content: s.content });
-        }
-        // Also check children
-        (s.children || []).forEach(c => {
-          if (c.completed && !existing.subtasks.find(x => x.content === c.content)) {
-            existing.subtasks.push({ content: c.content });
+    todos.forEach(t => {
+      const isKR = !!t.kr_id;
+      
+      if (isKR) {
+        // For KR todos: collect each completed top-level subtask (the "todo" items) as separate entries
+        (t.subtasks || []).forEach(s => {
+          if (s.completed) {
+            const key = `kr:${t.content}:${s.content}`;
+            if (!taskMap.has(key)) {
+              taskMap.set(key, {
+                content: s.content,
+                krName: t.content,
+                days: new Set(),
+                subtasks: [],
+                isKR: true
+              });
+            }
+            taskMap.get(key).days.add(dateStr);
+            // Merge children as subtasks
+            const existing = taskMap.get(key);
+            (s.children || []).forEach(c => {
+              if (c.completed && !existing.subtasks.find(x => x.content === c.content)) {
+                existing.subtasks.push({ content: c.content });
+              }
+            });
           }
         });
-      });
+      } else if (t.completed) {
+        // Normal completed todo
+        const key = t.content;
+        if (!taskMap.has(key)) {
+          taskMap.set(key, {
+            content: t.content,
+            days: new Set(),
+            subtasks: [],
+            isKR: false
+          });
+        }
+        taskMap.get(key).days.add(dateStr);
+        const existing = taskMap.get(key);
+        (t.subtasks || []).forEach(s => {
+          if (s.completed && !existing.subtasks.find(x => x.content === s.content)) {
+            existing.subtasks.push({ content: s.content });
+          }
+          (s.children || []).forEach(c => {
+            if (c.completed && !existing.subtasks.find(x => x.content === c.content)) {
+              existing.subtasks.push({ content: c.content });
+            }
+          });
+        });
+      }
     });
   });
   
   const tasks = Array.from(taskMap.values()).map(t => ({
     content: t.content,
+    krName: t.krName || null,
     isKR: t.isKR,
     days: Array.from(t.days).sort(),
     startDate: Array.from(t.days).sort()[0],
