@@ -288,6 +288,10 @@ function generateWeeklyReport(weekStart, weekEnd) {
 
 app.get('/api/todos', (req, res) => {
   const date = req.query.date || getTodayStr();
+  // Auto carry-over when viewing today's todos
+  if (date === getTodayStr()) {
+    carryOverTasks();
+  }
   const data = getTodosWithSubtasks(date);
   res.json({ success: true, data, date });
 });
@@ -731,19 +735,42 @@ function carryOverTasks() {
   const yesterday = getYesterdayStr();
   const uncompletedYesterday = db.prepare('SELECT * FROM todos WHERE date = ? AND completed = 0').all(yesterday);
   let carriedCount = 0;
-  const insertTodo = db.prepare('INSERT INTO todos (content, date, carried_from) VALUES (?, ?, ?)');
-  const insertSub = db.prepare('INSERT INTO subtasks (todo_id, content, completed, sort_order) VALUES (?, ?, ?, ?)');
+  const insertTodo = db.prepare('INSERT INTO todos (content, date, carried_from, sort_order, kr_id) VALUES (?, ?, ?, ?, ?)');
   const markDone = db.prepare('UPDATE todos SET completed = 1, completed_at = ? WHERE id = ?');
-  const getSubs = db.prepare('SELECT * FROM subtasks WHERE todo_id = ? ORDER BY sort_order ASC, id ASC');
 
   for (const todo of uncompletedYesterday) {
+    // Check if already carried
     const exists = db.prepare('SELECT id FROM todos WHERE date = ? AND content = ? AND carried_from = ?').get(today, todo.content, yesterday);
-    if (!exists) {
-      const result = insertTodo.run(todo.content, today, yesterday);
-      getSubs.all(todo.id).forEach(s => { if (!s.completed) insertSub.run(result.lastInsertRowid, s.content, 0, s.sort_order); });
-      markDone.run(new Date().toISOString(), todo.id);
-      carriedCount++;
+    if (exists) continue;
+
+    // Also check if same KR already has a todo today
+    if (todo.kr_id) {
+      const krExists = db.prepare('SELECT id FROM todos WHERE date = ? AND kr_id = ?').get(today, todo.kr_id);
+      if (krExists) continue;
     }
+
+    const result = insertTodo.run(todo.content, today, yesterday, todo.sort_order || 0, todo.kr_id || null);
+    const newTodoId = result.lastInsertRowid;
+
+    // Copy subtask tree: first top-level subtasks, then their children
+    const topSubs = db.prepare('SELECT * FROM subtasks WHERE todo_id = ? AND parent_id IS NULL ORDER BY sort_order ASC, id ASC').all(todo.id);
+    const insertSub = db.prepare('INSERT INTO subtasks (todo_id, content, completed, sort_order, parent_id) VALUES (?, ?, ?, ?, ?)');
+
+    for (const s of topSubs) {
+      // Copy top-level subtask (carry over uncompleted ones, or all if partially done)
+      const subResult = insertSub.run(newTodoId, s.content, s.completed ? 1 : 0, s.sort_order, null);
+      const newSubId = subResult.lastInsertRowid;
+
+      // Copy children
+      const children = db.prepare('SELECT * FROM subtasks WHERE parent_id = ? ORDER BY sort_order ASC, id ASC').all(s.id);
+      for (const c of children) {
+        insertSub.run(newTodoId, c.content, c.completed ? 1 : 0, c.sort_order, newSubId);
+      }
+    }
+
+    // Mark old todo as done
+    markDone.run(new Date().toISOString(), todo.id);
+    carriedCount++;
   }
   if (carriedCount > 0) console.log(`[累积] ${yesterday} → ${today}: ${carriedCount} 个任务`);
   return carriedCount;
